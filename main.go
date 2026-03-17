@@ -98,7 +98,10 @@ func corsOnly(w http.ResponseWriter) {
 // ─── HANDLERS USERS ────────────────────────────────────────
 
 func handleUsers(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { corsOnly(w); return }
+	if r.Method == "OPTIONS" {
+		corsOnly(w)
+		return
+	}
 
 	switch r.Method {
 
@@ -110,11 +113,14 @@ func handleUsers(w http.ResponseWriter, r *http.Request) {
 		var err error
 		if idFilter != "" {
 			id := strings.TrimPrefix(idFilter, "eq.")
-			rows, err = db.Query("SELECT id, name, color, shape, created_at FROM users WHERE id = ?", id)
+			rows, err = db.Query("SELECT id, name, color, shape, created_at FROM agenda_users WHERE id = ?", id)
 		} else {
-			rows, err = db.Query("SELECT id, name, color, shape, created_at FROM users")
+			rows, err = db.Query("SELECT id, name, color, shape, created_at FROM agenda_users")
 		}
-		if err != nil { errResp(w, 500, err.Error()); return }
+		if err != nil {
+			errResp(w, 500, err.Error())
+			return
+		}
 		defer rows.Close()
 		users := []User{}
 		for rows.Next() {
@@ -126,20 +132,28 @@ func handleUsers(w http.ResponseWriter, r *http.Request) {
 
 	case "POST":
 		userID, err := getUserIDFromToken(r)
-		if err != nil { errResp(w, 401, err.Error()); return }
+		if err != nil {
+			errResp(w, 401, err.Error())
+			return
+		}
 
 		var u User
 		json.NewDecoder(r.Body).Decode(&u)
 		u.ID = userID // on force l'ID depuis le token
-		if u.Shape == "" { u.Shape = "circle" }
+		if u.Shape == "" {
+			u.Shape = "circle"
+		}
 
 		_, err = db.Exec(
-			"INSERT INTO users (id, name, color, shape) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name)",
+			"INSERT INTO agenda_users (id, name, color, shape) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name)",
 			u.ID, u.Name, u.Color, u.Shape,
 		)
-		if err != nil { errResp(w, 500, err.Error()); return }
+		if err != nil {
+			errResp(w, 500, err.Error())
+			return
+		}
 
-		db.QueryRow("SELECT id, name, color, shape, created_at FROM users WHERE id = ?", u.ID).
+		db.QueryRow("SELECT id, name, color, shape, created_at FROM agenda_users WHERE id = ?", u.ID).
 			Scan(&u.ID, &u.Name, &u.Color, &u.Shape, &u.CreatedAt)
 		jsonResp(w, 201, []User{u})
 
@@ -151,13 +165,19 @@ func handleUsers(w http.ResponseWriter, r *http.Request) {
 // ─── HANDLERS INSTANCES ────────────────────────────────────
 
 func handleInstances(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { corsOnly(w); return }
+	if r.Method == "OPTIONS" {
+		corsOnly(w)
+		return
+	}
 
 	switch r.Method {
 
 	case "GET":
-		rows, err := db.Query("SELECT id, name, owner_id, color, created_at FROM instances ORDER BY created_at ASC")
-		if err != nil { errResp(w, 500, err.Error()); return }
+		rows, err := db.Query("SELECT id, name, owner_id, color, created_at FROM agenda_instances ORDER BY created_at ASC")
+		if err != nil {
+			errResp(w, 500, err.Error())
+			return
+		}
 		defer rows.Close()
 		instances := []Instance{}
 		for rows.Next() {
@@ -169,7 +189,10 @@ func handleInstances(w http.ResponseWriter, r *http.Request) {
 
 	case "POST":
 		userID, err := getUserIDFromToken(r)
-		if err != nil { errResp(w, 401, err.Error()); return }
+		if err != nil {
+			errResp(w, 401, err.Error())
+			return
+		}
 
 		var inst Instance
 		json.NewDecoder(r.Body).Decode(&inst)
@@ -177,12 +200,15 @@ func handleInstances(w http.ResponseWriter, r *http.Request) {
 		inst.OwnerID = userID
 
 		_, err = db.Exec(
-			"INSERT INTO instances (id, name, owner_id, color) VALUES (?, ?, ?, ?)",
+			"INSERT INTO agenda_instances (id, name, owner_id, color) VALUES (?, ?, ?, ?)",
 			inst.ID, inst.Name, inst.OwnerID, inst.Color,
 		)
-		if err != nil { errResp(w, 500, err.Error()); return }
+		if err != nil {
+			errResp(w, 500, err.Error())
+			return
+		}
 
-		db.QueryRow("SELECT id, name, owner_id, color, created_at FROM instances WHERE id = ?", inst.ID).
+		db.QueryRow("SELECT id, name, owner_id, color, created_at FROM agenda_instances WHERE id = ?", inst.ID).
 			Scan(&inst.ID, &inst.Name, &inst.OwnerID, &inst.Color, &inst.CreatedAt)
 		jsonResp(w, 201, []Instance{inst})
 
@@ -194,13 +220,19 @@ func handleInstances(w http.ResponseWriter, r *http.Request) {
 // ─── HANDLERS PRESENCES ────────────────────────────────────
 
 func handlePresences(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" { corsOnly(w); return }
+	if r.Method == "OPTIONS" {
+		corsOnly(w)
+		return
+	}
 
 	switch r.Method {
 
 	case "GET":
-		rows, err := db.Query("SELECT id, instance_id, user_id, date, state, created_at FROM presences")
-		if err != nil { errResp(w, 500, err.Error()); return }
+		rows, err := db.Query("SELECT id, instance_id, user_id, date, state, created_at FROM agenda_presences")
+		if err != nil {
+			errResp(w, 500, err.Error())
+			return
+		}
 		defer rows.Close()
 		presences := []Presence{}
 		for rows.Next() {
@@ -214,25 +246,36 @@ func handlePresences(w http.ResponseWriter, r *http.Request) {
 
 	case "POST":
 		userID, err := getUserIDFromToken(r)
-		if err != nil { errResp(w, 401, err.Error()); return }
+		if err != nil {
+			errResp(w, 401, err.Error())
+			return
+		}
 
 		var p Presence
 		json.NewDecoder(r.Body).Decode(&p)
 		p.UserID = userID // on force depuis le token
-		if p.ID == "" { p.ID = uuid.New().String() }
+		if p.ID == "" {
+			p.ID = uuid.New().String()
+		}
 
 		_, err = db.Exec(`
-			INSERT INTO presences (id, instance_id, user_id, date, state)
+			INSERT INTO agenda_presences (id, instance_id, user_id, date, state)
 			VALUES (?, ?, ?, ?, ?)
 			ON DUPLICATE KEY UPDATE state = VALUES(state), id = id
 		`, p.ID, p.InstanceID, p.UserID, p.Date, p.State)
-		if err != nil { errResp(w, 500, err.Error()); return }
+		if err != nil {
+			errResp(w, 500, err.Error())
+			return
+		}
 
 		jsonResp(w, 201, []Presence{p})
 
 	case "DELETE":
 		userID, err := getUserIDFromToken(r)
-		if err != nil { errResp(w, 401, err.Error()); return }
+		if err != nil {
+			errResp(w, 401, err.Error())
+			return
+		}
 
 		q := r.URL.Query()
 		instanceID := strings.TrimPrefix(q.Get("instance_id"), "eq.")
@@ -240,10 +283,13 @@ func handlePresences(w http.ResponseWriter, r *http.Request) {
 
 		// On force user_id depuis le token (sécurité)
 		_, err = db.Exec(
-			"DELETE FROM presences WHERE instance_id = ? AND user_id = ? AND date = ?",
+			"DELETE FROM agenda_presences WHERE instance_id = ? AND user_id = ? AND date = ?",
 			instanceID, userID, date,
 		)
-		if err != nil { errResp(w, 500, err.Error()); return }
+		if err != nil {
+			errResp(w, 500, err.Error())
+			return
+		}
 
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.WriteHeader(http.StatusNoContent)
@@ -267,11 +313,15 @@ func main() {
 
 	var err error
 	db, err = sql.Open("mysql", dsn)
-	if err != nil { log.Fatal(err) }
+	if err != nil {
+		log.Fatal(err)
+	}
 	db.SetMaxOpenConns(10)
 	db.SetConnMaxLifetime(time.Minute * 3)
 
-	if err = db.Ping(); err != nil { log.Fatal("DB unreachable:", err) }
+	if err = db.Ping(); err != nil {
+		log.Fatal("DB unreachable:", err)
+	}
 	log.Println("DB connected")
 
 	http.HandleFunc("/users", handleUsers)
@@ -282,7 +332,9 @@ func main() {
 	})
 
 	port := os.Getenv("PORT")
-	if port == "" { port = "8080" }
+	if port == "" {
+		port = "8080"
+	}
 	log.Println("api-agenda listening on :" + port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
